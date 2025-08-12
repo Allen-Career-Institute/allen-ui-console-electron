@@ -1,0 +1,230 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 1.0.0) - leave empty for auto-increment"
+        required: false
+        type: string
+      version_type:
+        description: "Version increment type (patch, minor, major)"
+        required: false
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  NODE_VERSION: "18"
+  YARN_VERSION: "4.9.2"
+
+# Cancel in-progress jobs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    strategy:
+      matrix:
+        os: [windows-latest]
+        include:
+          - os: windows-latest
+            platform: win32
+            arch: x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use NodeJS 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Use NodeJS 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        timeout-minutes: 10
+
+      - name: Build TypeScript
+        run: yarn build:ts
+        timeout-minutes: 5
+
+      - name: Build renderer
+        run: yarn renderer:build
+        timeout-minutes: 5
+
+      - name: Setup certificates
+        run: |
+          # Create certificates directory
+          mkdir -p certificates
+
+          # Decode and create Windows certificate
+          if [ "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}" != "" ]; then
+            echo "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}" | base64 -d > certificates/windows_certificate.pfx
+            echo "Windows certificate created"
+          fi
+
+          # Set certificate environment variables
+          if [ -f "certificates/windows_certificate.pfx" ]; then
+            echo "CSC_LINK=certificates/windows_certificate.pfx" >> $GITHUB_ENV
+          fi
+
+      - name: Build TypeScript
+        run: yarn build:ts
+        timeout-minutes: 5
+
+      - name: Build renderer
+        run: yarn renderer:build
+        timeout-minutes: 5
+
+      - name: Build Electron app
+        run: yarn make
+        timeout-minutes: 25
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_ENV: production
+          STAGE_URL: ${{ secrets.STAGE_CONSOLE_URL }}
+          PROD_URL: ${{ secrets.PROD_CONSOLE_URL }}
+          CUSTOM_URL: ${{ secrets.CUSTOM_CONSOLE_URL }}
+          CSC_LINK: ${{ env.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        timeout-minutes: 5
+        with:
+          name: allen-ui-console-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            out/
+            !out/**/*.blockmap
+          retention-days: 90
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use NodeJS 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Use NodeJS 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        timeout-minutes: 10
+
+      - name: Get version
+        id: get_version
+        run: |
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            # Use manually specified version
+            NEW_VERSION="${{ github.event.inputs.version }}"
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "Using manually specified version: $NEW_VERSION"
+          else
+            # Auto-increment version
+            VERSION_TYPE="${{ github.event.inputs.version_type }}"
+            if [ "$VERSION_TYPE" = "" ]; then
+              VERSION_TYPE="patch"
+            fi
+            
+            # Split version into components
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            
+            case $VERSION_TYPE in
+              "major")
+                NEW_MAJOR=$((MAJOR + 1))
+                NEW_VERSION="$NEW_MAJOR.0.0"
+                ;;
+              "minor")
+                NEW_MINOR=$((MINOR + 1))
+                NEW_VERSION="$MAJOR.$NEW_MINOR.0"
+                ;;
+              "patch")
+                NEW_PATCH=$((PATCH + 1))
+                NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+                ;;
+              *)
+                NEW_PATCH=$((PATCH + 1))
+                NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+                ;;
+            esac
+            
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "Auto-incrementing version: $CURRENT_VERSION -> $NEW_VERSION ($VERSION_TYPE)"
+          fi
+
+      - name: Update package.json version
+        run: |
+          # Update version in package.json
+          npm version ${{ steps.get_version.outputs.version }} --no-git-tag-version
+          echo "Updated package.json to version ${{ steps.get_version.outputs.version }}"
+
+      - name: Commit version update
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json
+          git commit -m "Bump version to ${{ steps.get_version.outputs.version }} [skip ci]"
+          git push
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Release v${{ steps.get_version.outputs.version }}
+          body: |
+            ## Allen UI Console Electron v${{ steps.get_version.outputs.version }}
+
+            ### Downloads
+            - **Windows (64-bit):** allen-ui-console-win32-x64.zip
+
+            ### Changes
+            See the [commit history](https://github.com/${{ github.repository }}/compare/v${{ steps.get_version.outputs.version }}...main) for details.
+          files: |
+            artifacts/allen-ui-console-win32-x64/out/*
+            artifacts/allen-ui-console-win32-ia32/out/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

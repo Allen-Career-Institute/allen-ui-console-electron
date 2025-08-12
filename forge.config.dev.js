@@ -25,33 +25,30 @@ module.exports = {
       /__tests__/,
       /coverage/,
       /\.nyc_output/,
-      /\.nyc_output/,
       /docs/,
       /examples/,
-      /scripts\/(?!setup|generate-dev-cert)/
+      /scripts\/(?!setup|generate-dev-cert)/,
     ],
     // Enable compression
     compression: 'maximum',
     // Prune dependencies
     prune: true,
     // Overwrite existing files
-    overwrite: true
+    overwrite: true,
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: {
-        name: process.env.NODE_ENV === 'production' ? 'Allen Console' : 'Allen Console (Stage)',
+        name: 'allen_ui_console_dev',
         authors: 'Allen Digital',
-        description: process.env.NODE_ENV === 'production' ? 'Allen UI Console Electron App' : 'Allen UI Console Electron App (Stage)',
-        iconUrl: 'https://raw.githubusercontent.com/your-username/allen-ui-console-electron/main/assets/icon.ico',
-        setupIcon: './assets/icon.ico',
-        // Windows code signing configuration
-        certificateFile: process.env.NODE_ENV === 'production' ? process.env.CSC_LINK : null,
-        certificatePassword: process.env.NODE_ENV === 'production' ? process.env.CSC_KEY_PASSWORD : null
-      }
-    }
+        description: 'Allen UI Console Electron App (Development)',
+        // Use local development certificate if available
+        certificateFile: process.env.LOCAL_CERTIFICATE_PATH || null,
+        certificatePassword: process.env.LOCAL_CERTIFICATE_PASSWORD || null,
+      },
+    },
   ],
   plugins: [
     {
@@ -59,10 +56,10 @@ module.exports = {
       config: {
         repository: {
           owner: 'dinesh-kumar-allen',
-          name: 'allen-ui-console-electron'
-        }
-      }
-    }
+          name: 'allen-ui-console-electron',
+        },
+      },
+    },
   ],
   publishers: [
     {
@@ -70,11 +67,11 @@ module.exports = {
       config: {
         repository: {
           owner: 'dinesh-kumar-allen',
-          name: 'allen-ui-console-electron'
+          name: 'allen-ui-console-electron',
         },
-        prerelease: false,
-        draft: false
-      }
-    }
-  ]
+        prerelease: true, // Mark as pre-release for development builds
+        draft: true, // Create as draft for development builds
+      },
+    },
+  ],
 };

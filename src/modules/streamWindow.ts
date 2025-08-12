@@ -1,7 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
 import path from 'path';
 import { DEFAULT_URL, ENV } from './config';
-import { StreamWindowConfig } from '../types/electron';
+import { StreamWindowConfig } from '@/types/electron';
 
 let streamWindow: BrowserWindow | null = null;
 let streamWindowConfig: StreamWindowConfig | null = null;

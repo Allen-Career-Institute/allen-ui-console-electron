@@ -1,49 +1,67 @@
-const Sentry = require('@sentry/electron');
+// Conditional Sentry Loading - Only loads in production to reduce bundle size
+let Sentry = null;
+let isInitialized = false;
 
-function initializeSentry() {
-  const dsn = process.env.SENTRY_DSN || process.env.SENTRY_DSN_DEV;
-  const environment = process.env.NODE_ENV || 'development';
+// Initialize Sentry only in production
+export async function initializeSentry() {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Sentry disabled in non-production environment');
+    return;
+  }
 
-  if (dsn) {
-    try {
-      const integrations = [];
+  try {
+    // Dynamic import to reduce bundle size
+    const { init } = await import('@sentry/electron');
+    const { Integrations } = await import('@sentry/tracing');
 
-      if (Sentry.Integrations && Sentry.Integrations.GlobalHandlers) {
-        try {
-          integrations.push(new Sentry.Integrations.GlobalHandlers());
-        } catch (e) {
-          console.warn('GlobalHandlers integration not available:', e.message);
-        }
-      }
+    init({
+      dsn: process.env.SENTRY_DSN || 'your-sentry-dsn-here',
+      integrations: [new Integrations.BrowserTracing()],
+      tracesSampleRate: 1.0,
+      environment: process.env.NODE_ENV,
+    });
 
-      if (Sentry.Integrations && Sentry.Integrations.Process) {
-        try {
-          integrations.push(new Sentry.Integrations.Process());
-        } catch (e) {
-          console.warn('Process integration not available:', e.message);
-        }
-      }
-
-      Sentry.init({
-        dsn: dsn,
-        environment: environment,
-        debug: environment === 'development',
-        integrations: integrations,
-        tracesSampleRate: environment === 'production' ? 0.1 : 1.0,
-        attachStacktrace: true,
-        includeLocalVariables: true,
-        release: process.env.APP_VERSION || '1.0.0',
-        dist: process.env.NODE_ENV || 'development',
-      });
-
-      console.log(`Sentry initialized for environment: ${environment}`);
-    } catch (error) {
-      console.error('Failed to initialize Sentry:', error);
-      console.log('Continuing without Sentry...');
-    }
-  } else {
-    console.log('Sentry DSN not provided, skipping initialization');
+    isInitialized = true;
+    console.log('Sentry initialized successfully');
+  } catch (error) {
+    console.warn('Failed to initialize Sentry:', error.message);
   }
 }
 
-module.exports = { initializeSentry };
+// Conditional error reporting
+export function captureException(error, context = {}) {
+  if (!isInitialized || process.env.NODE_ENV !== 'production') {
+    console.error('Error (Sentry disabled):', error, context);
+    return;
+  }
+
+  try {
+    Sentry?.captureException(error, context);
+  } catch (sentryError) {
+    console.error('Failed to send to Sentry:', sentryError);
+  }
+}
+
+// Conditional message reporting
+export function captureMessage(message, level = 'info', context = {}) {
+  if (!isInitialized || process.env.NODE_ENV !== 'production') {
+    console.log(`Message (Sentry disabled): ${message}`, context);
+    return;
+  }
+
+  try {
+    Sentry?.captureMessage(message, level, context);
+  } catch (sentryError) {
+    console.error('Failed to send message to Sentry:', sentryError);
+  }
+}
+
+// Get Sentry instance (for advanced usage)
+export function getSentry() {
+  return isInitialized ? Sentry : null;
+}
+
+// Check if Sentry is available
+export function isSentryAvailable() {
+  return isInitialized && process.env.NODE_ENV === 'production';
+}

@@ -1,7 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
 import path from 'path';
 import { DEFAULT_URL, ENV } from './config';
-import { WhiteboardWindowConfig } from '../types/electron';
+import { WhiteboardWindowConfig } from '@/types/electron';
 
 let whiteboardWindow: BrowserWindow | null = null;
 let whiteboardWindowConfig: WhiteboardWindowConfig | null = null;

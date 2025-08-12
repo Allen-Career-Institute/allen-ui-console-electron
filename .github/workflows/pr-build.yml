@@ -1,0 +1,87 @@
+name: PR Build
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened ]
+
+env:
+  NODE_VERSION: '18'
+  YARN_VERSION: '4.9.2'
+
+# Cancel in-progress jobs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    
+    strategy:
+      matrix:
+        os: [windows-latest]
+        include:
+          - os: windows-latest
+            platform: win32
+            arch: x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use NodeJS 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Use NodeJS 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        timeout-minutes: 10
+
+      - name: Build TypeScript
+        run: yarn build:ts
+        timeout-minutes: 5
+
+      - name: Build renderer
+        run: yarn renderer:build
+        timeout-minutes: 5
+
+      - name: Build Electron app
+        run: yarn make
+        timeout-minutes: 25
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_ENV: stage
+          STAGE_URL: ${{ secrets.STAGE_CONSOLE_URL }}
+          PROD_URL: ${{ secrets.PROD_CONSOLE_URL }}
+          CUSTOM_URL: ${{ secrets.CUSTOM_CONSOLE_URL }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        timeout-minutes: 5
+        with:
+          name: allen-ui-console-${{ matrix.platform }}-${{ matrix.arch }}-pr-${{ github.event.number }}
+          path: |
+            out/
+            !out/**/*.blockmap
+          retention-days: 30
+
+      - name: Create build summary
+        if: matrix.os == 'windows-latest' && matrix.arch == 'x64'
+        run: |
+          echo "## Build Summary for PR #${{ github.event.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms:** Windows (x64 only)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Status:** ✅ Success" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifacts:** Available for download above" >> $GITHUB_STEP_SUMMARY
+          echo "- **Retention:** 30 days" >> $GITHUB_STEP_SUMMARY
