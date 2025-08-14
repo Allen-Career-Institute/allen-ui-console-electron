@@ -1,9 +1,10 @@
-const { getMainWindow } = require('./windowManager');
-const { getStreamWindow } = require('./streamWindow');
-const { getWhiteboardWindow } = require('./whiteboardWindow');
-const { ENV } = require('./config');
+import { dialog } from 'electron';
+import { getMainWindow } from './windowManager';
+import { getStreamWindow } from './streamWindow';
+import { getWhiteboardWindow } from './whiteboard-window';
+import { ENV } from './config';
 
-function cleanup() {
+function cleanup(): void {
   const mainWindow = getMainWindow();
   const streamWindow = getStreamWindow();
   const whiteboardWindow = getWhiteboardWindow();
@@ -21,11 +22,10 @@ function cleanup() {
   }
 }
 
-function handleUncaughtException(error) {
+function handleUncaughtException(error: Error): void {
   console.error('Uncaught Exception:', error);
 
   if (ENV === 'development') {
-    const { dialog } = require('electron');
     dialog.showErrorBox(
       'Uncaught Exception',
       `An uncaught exception occurred: ${error.message}\n\nStack: ${error.stack}`
@@ -33,11 +33,13 @@ function handleUncaughtException(error) {
   }
 }
 
-function handleUnhandledRejection(reason, promise) {
+function handleUnhandledRejection(
+  reason: unknown,
+  promise: Promise<unknown>
+): void {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 
   if (ENV === 'development') {
-    const { dialog } = require('electron');
     dialog.showErrorBox(
       'Unhandled Rejection',
       `An unhandled rejection occurred: ${reason}`
@@ -45,12 +47,12 @@ function handleUnhandledRejection(reason, promise) {
   }
 }
 
-function setupCleanupHandlers() {
+function setupCleanupHandlers(): void {
   process.on('uncaughtException', handleUncaughtException);
   process.on('unhandledRejection', handleUnhandledRejection);
 }
 
-module.exports = {
+export {
   cleanup,
   handleUncaughtException,
   handleUnhandledRejection,

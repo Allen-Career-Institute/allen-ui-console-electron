@@ -1,7 +1,7 @@
-const { autoUpdater } = require('electron-updater');
-const { dialog } = require('electron');
+import { autoUpdater } from 'electron-updater';
+import { dialog } from 'electron';
 
-function setupAutoUpdater() {
+function setupAutoUpdater(): void {
   autoUpdater.checkForUpdatesAndNotify();
 
   autoUpdater.on('update-available', () => {
@@ -13,17 +13,8 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('update-downloaded', () => {
-    dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Ready',
-      message: 'Update downloaded. The app will restart to install the update.',
-    });
-    autoUpdater.quitAndInstall();
-  });
-
-  autoUpdater.on('update-downloaded', () => {
     const dialogOpts = {
-      type: 'info',
+      type: 'info' as const,
       buttons: ['Restart', 'Later'],
       title: 'Application Update',
       message: 'Update downloaded. The app will restart to install the update.',
@@ -37,4 +28,4 @@ function setupAutoUpdater() {
   });
 }
 
-module.exports = { setupAutoUpdater };
+export { setupAutoUpdater };

@@ -18,7 +18,6 @@ const reloadMainWindow = (force: boolean = false): void => {
           title: 'Confirm Reload',
           message: 'Are you sure you want to reload the main window?',
           detail: 'This will stop the stream window if it is currently open.',
-          icon: path.join(__dirname, '../../assets/icon.png'),
         })
         .then(result => {
           if (result.response === 1) {

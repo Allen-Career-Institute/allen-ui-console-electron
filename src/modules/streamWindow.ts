@@ -1,46 +1,11 @@
 import { BrowserWindow, screen } from 'electron';
 import path from 'path';
 import { DEFAULT_URL, ENV } from './config';
-import { StreamWindowConfig } from '../types/electron';
+import { StreamWindowConfig } from '@/types/electron';
 
 let streamWindow: BrowserWindow | null = null;
 let streamWindowConfig: StreamWindowConfig | null = null;
 let streamWindowSettingUp: boolean = false;
-
-// Force close stream window (for admin/emergency use)
-function forceCloseStreamWindow(): boolean {
-  try {
-    if (streamWindow && !streamWindow.isDestroyed()) {
-      // Set force close flag
-      if (streamWindowConfig) {
-        streamWindowConfig.forceClose = true;
-      }
-
-      // Close the window
-      streamWindow.close();
-
-      setTimeout(() => {
-        if (streamWindow && !streamWindow.isDestroyed()) {
-          try {
-            streamWindow.destroy();
-          } catch (destroyError) {
-            console.error('Error destroying stream window:', destroyError);
-          }
-        }
-
-        streamWindow = null;
-        streamWindowSettingUp = false;
-        streamWindowConfig = null;
-      }, 100);
-
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.error('Error force closing stream window:', error);
-    return false;
-  }
-}
 
 // Enhanced cleanup function
 function cleanupStreamWindowResources(): void {
@@ -59,8 +24,6 @@ function cleanupStreamWindowResources(): void {
         );
       }
     }
-
-    console.log('Stream window resources cleaned up successfully');
   } catch (error) {
     console.error('Error during stream window cleanup:', error);
   }
@@ -108,8 +71,6 @@ function safeCloseStreamWindow(reason: string = 'unknown'): boolean {
             streamWindowSettingUp = false;
             streamWindowConfig = null;
           }, 100);
-
-          console.log(`Stream window closed safely. Reason: ${reason}`);
           return true;
         } catch (error) {
           console.error('Error during stream window close:', error);
@@ -156,6 +117,7 @@ function createStreamWindow(config: StreamWindowConfig): BrowserWindow {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        sandbox: false,
         preload: path.join(__dirname, '../stream-preload.js'),
         webSecurity: false, // Disable for screen sharing to work
         allowRunningInsecureContent: true,
@@ -163,9 +125,8 @@ function createStreamWindow(config: StreamWindowConfig): BrowserWindow {
         experimentalFeatures: true,
         // Enable WebRTC features
         enableBlinkFeatures:
-          'WebCodecs,WebRTC,GetDisplayMedia,ScreenCaptureKit,DesktopCaptureKit,WebRTCPipeWireCapturer',
+          'WebCodecs,WebRTC,GetDisplayMedia,ScreenCaptureKit,DesktopCaptureKit,WebRTCPipeWireCapturer,MediaCapture,ScreenCapture',
       },
-      icon: path.join(__dirname, '../../assets/icon.png'),
       resizable: true,
       minimizable: true,
       maximizable: true,
@@ -181,7 +142,6 @@ function createStreamWindow(config: StreamWindowConfig): BrowserWindow {
     });
 
     // Load the stream window content
-    // streamWindow.loadFile(path.join(__dirname, '../renderer/recording-window.html'));
     streamWindow.loadURL(streamWindowConfig.url || DEFAULT_URL);
 
     // Initialize native screen capture immediately after window creation
@@ -193,7 +153,10 @@ function createStreamWindow(config: StreamWindowConfig): BrowserWindow {
     streamWindow.once('ready-to-show', () => {
       if (streamWindow && !streamWindow.isDestroyed()) {
         streamWindow.show();
+        streamWindow.setFullScreen(true);
+        streamWindow.maximize();
         getMainWindow()?.show();
+        // getMainWindow()?.focus();
         streamWindowSettingUp = false;
         console.log('Stream window ready and shown');
       }
@@ -234,7 +197,6 @@ function isStreamWindowSettingUp(): boolean {
 
 // Export all functions
 export {
-  forceCloseStreamWindow,
   cleanupStreamWindowResources,
   safeCloseStreamWindow,
   createStreamWindow,

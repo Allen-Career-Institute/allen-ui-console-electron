@@ -6,25 +6,39 @@
   "packageManager": "yarn@4.9.2",
   "scripts": {
     "start": "electron dist/main.js",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "publish": "electron-forge publish",
     "lint": "npx oxlint .",
     "lint:fix": "npx oxlint --fix .",
     "format": "prettier --write \"**/*.{js,ts,jsx,tsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{js,ts,jsx,tsx,json,css,md}\"",
     "typecheck": "tsc --noEmit",
     "build:ts": "tsc",
-    "build": "yarn build:ts && electron-forge make",
+    "build": "yarn build:ts && yarn renderer:build && yarn dist",
     "dev": "yarn build:ts && yarn start",
     "dev:watch": "nodemon --watch src --ext ts,js --ignore src/**/*.d.ts --exec \"yarn build:ts && yarn start\"",
     "dev:full": "concurrently \"yarn renderer:dev\" \"yarn dev:watch\"",
-    "clean": "yarn dlx rimraf node_modules out dist",
-    "clean:dist": "yarn dlx rimraf dist",
+    "clean": "yarn dlx rimraf node_modules out dist dist-electron-builder",
+    "clean:dist": "yarn dlx rimraf dist dist-electron-builder",
     "rebuild": "yarn clean:dist && yarn build:ts",
     "renderer:dev": "webpack --mode development --watch",
-    "renderer:build": "webpack --mode production",
+    "renderer:build": "webpack --config webpack.config.prod.js",
     "renderer:start": "webpack serve --mode development",
+    "dist": "electron-builder --config electron-builder.json",
+    "dist:win": "electron-builder --config electron-builder.json --win --x64",
+    "dist:win-installer": "electron-builder --config electron-builder.json --win --x64",
+    "dist:mac": "electron-builder --config electron-builder.json --mac --x64",
+    "dist:linux": "electron-builder --config electron-builder.json --linux --x64",
+    "dist:publish": "electron-builder --config electron-builder.json --publish always",
+    "dist:publish-draft": "electron-builder --config electron-builder.json --publish draft",
+    "dev:build": "yarn build:ts && yarn renderer:build && yarn dist:win-installer",
+    "version:current": "./scripts/version-manager.sh current",
+    "version:bump": "./scripts/version-manager.sh bump",
+    "version:set": "./scripts/version-manager.sh set",
+    "version:interactive": "./scripts/version-manager.sh interactive",
+    "version:history": "./scripts/version-manager.sh history",
+    "version:tag": "./scripts/version-manager.sh tag",
+    "analyze:size": "./scripts/analyze-size.sh",
+    "test:builds": "./scripts/test-builds.sh",
+    "icons:generate": "electron-icon-builder --input=assets/icons/png/1024x1024.png --output=assets/icons --flatten",
     "prepare": "husky install",
     "postinstall": "yarn dlx husky install"
   },
@@ -45,27 +59,31 @@
     "@babel/preset-typescript": "^7.23.3",
     "@commitlint/cli": "^18.4.3",
     "@commitlint/config-conventional": "^18.4.3",
-    "@electron-forge/cli": "^7.2.0",
-    "@electron-forge/maker-deb": "^7.2.0",
-    "@electron-forge/maker-rpm": "^7.2.0",
-    "@electron-forge/maker-squirrel": "^7.2.0",
-    "@electron-forge/maker-zip": "^7.2.0",
-    "@electron-forge/plugin-webpack": "^7.2.0",
     "@types/electron": "^1.6.12",
-    "@types/fluent-ffmpeg": "^2.1.27",
     "@types/node": "^24.2.1",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
     "babel-loader": "^9.1.3",
     "concurrently": "^8.2.2",
     "copy-webpack-plugin": "^13.0.0",
     "css-loader": "^6.8.1",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "electron-icon-builder": "^2.0.1",
     "html-webpack-plugin": "^5.5.3",
     "husky": "^8.0.3",
     "lint-staged": "^15.2.0",
     "nodemon": "^3.0.2",
+    "prettier": "^3.6.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "rimraf": "^5.0.5",
     "style-loader": "^3.3.3",
+    "terser-webpack-plugin": "^5.3.14",
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.20.4",
     "typescript": "^5.3.3",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4",
@@ -76,67 +94,18 @@
     "@sentry/electron": "^4.0.0",
     "@sentry/node": "^7.0.0",
     "@sentry/tracing": "^7.0.0",
-    "@types/react": "^18.2.45",
-    "@types/react-dom": "^18.2.18",
-    "electron-squirrel-startup": "^1.0.0",
+    "date-fns": "^4.1.0",
     "electron-store": "^8.1.0",
     "electron-updater": "^6.1.7",
-    "ffmpeg-static": "^5.2.0",
-    "moment": "^2.29.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "ts-ebml": "^3.0.1",
     "uuid": "^9.0.1"
   },
   "lint-staged": {
     "*.{js,ts,jsx,tsx}": [
       "npx oxlint --fix",
-      "prettier --write"
+      "npx prettier --write"
     ],
     "*.{json,css,md}": [
-      "prettier --write"
+      "npx prettier --write"
     ]
-  },
-  "config": {
-    "forge": {
-      "packagerConfig": {
-        "icon": "./assets/icon.png"
-      },
-      "makers": [
-        {
-          "name": "@electron-forge/maker-squirrel",
-          "config": {
-            "name": "allen_ui_console"
-          }
-        },
-        {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
-        },
-        {
-          "name": "@electron-forge/maker-deb",
-          "config": {}
-        },
-        {
-          "name": "@electron-forge/maker-rpm",
-          "config": {}
-        }
-      ],
-      "plugins": [],
-      "publishers": [
-        {
-          "name": "@electron-forge/publisher-github",
-          "config": {
-            "repository": {
-              "owner": "your-github-username",
-              "name": "allen-ui-console-electron"
-            },
-            "prerelease": false
-          }
-        }
-      ]
-    }
   }
 }

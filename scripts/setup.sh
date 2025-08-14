@@ -62,9 +62,9 @@ NODE_ENV=development
 APP_VERSION=1.0.0
 
 # URLs
-STAGE_URL=https://stage.allen.com
-PROD_URL=https://app.allen.com
-CUSTOM_URL=https://custom.allen.com
+STAGE_URL=https://console.allen-stage.in
+PROD_URL=https://astra.allen.in
+CUSTOM_URL=http://localhost:3000
 
 # Sentry Configuration (optional)
 # SENTRY_DSN=your-sentry-dsn

@@ -1,7 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
 import path from 'path';
 import { DEFAULT_URL, ENV } from './config';
-import { WhiteboardWindowConfig } from '../types/electron';
+import { WhiteboardWindowConfig } from '@/types/electron';
 
 let whiteboardWindow: BrowserWindow | null = null;
 let whiteboardWindowConfig: WhiteboardWindowConfig | null = null;
@@ -48,14 +48,12 @@ function cleanupwhiteboardWindowResources(): void {
       try {
         whiteboardWindow.webContents.send('cleanup-resources');
       } catch (error) {
-        console.log(
+        console.error(
           'Could not send cleanup signal to whiteboard window:',
           (error as Error).message
         );
       }
     }
-
-    console.log('Whiteboard window resources cleaned up successfully');
   } catch (error) {
     console.error('Error during whiteboard window cleanup:', error);
   }
@@ -109,8 +107,6 @@ function safeClosewhiteboardWindow(reason: string = 'unknown'): boolean {
             whiteboardWindowSettingUp = false;
             whiteboardWindowConfig = null;
           }, 100);
-
-          console.log(`Whiteboard window closed safely. Reason: ${reason}`);
           return true;
         } catch (error) {
           console.error('Error during whiteboard window close:', error);
@@ -128,9 +124,6 @@ function safeClosewhiteboardWindow(reason: string = 'unknown'): boolean {
 function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
   try {
     if (whiteboardWindow && !whiteboardWindow.isDestroyed()) {
-      console.log(
-        'Whiteboard window already exists, returning existing window'
-      );
       return whiteboardWindow;
     }
 
@@ -186,7 +179,6 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
         enableBlinkFeatures:
           'WebCodecs,WebRTC,GetDisplayMedia,ScreenCaptureKit,DesktopCaptureKit,WebRTCPipeWireCapturer',
       },
-      icon: path.join(__dirname, '../../assets/icon.png'),
       resizable: true,
       minimizable: true,
       maximizable: true,
@@ -200,12 +192,6 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
       thickFrame: true,
       titleBarStyle: 'default',
     });
-
-    console.log(
-      'whiteboardWindowConfig',
-      whiteboardWindowConfig,
-      whiteboardWindow
-    );
 
     // Load the whiteboard window content
     // whiteboardWindow.loadFile(path.join(__dirname, '../renderer/recording-window.html'));
@@ -221,7 +207,6 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
         whiteboardWindow.focus();
         whiteboardWindow.maximize;
         whiteboardWindowSettingUp = false;
-        console.log('Whiteboard window ready and shown');
       }
     });
 
@@ -229,7 +214,6 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
       whiteboardWindow = null;
       whiteboardWindowSettingUp = false;
       whiteboardWindowConfig = null;
-      console.log('Whiteboard window closed');
     });
 
     whiteboardWindow.on('unresponsive', () => {

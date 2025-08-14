@@ -1,42 +1,21 @@
-const { Menu, dialog } = require('electron');
-const Store = require('electron-store');
-const { ENV, DEFAULT_URL } = require('./config');
-const { getMainWindow } = require('./windowManager');
-const { reloadMainWindow } = require('./reloadUtils');
+import { Menu, dialog, app, BrowserWindow } from 'electron';
+import Store from 'electron-store';
+import { ENV, DEFAULT_URL } from './config';
+import { getMainWindow } from './windowManager';
+import { reloadMainWindow } from './reloadUtils';
 
 const store = new Store();
 
-function createMenu() {
+function createMenu(): void {
   const template = [
     {
       label: 'File',
       submenu: [
         {
-          label: 'Change URL',
-          accelerator: 'CmdOrCtrl+U',
-          click: () => {
-            if (ENV === 'stage') {
-              dialog
-                .showInputBox({
-                  title: 'Change URL',
-                  message: 'Enter new URL:',
-                  default: store.get('customUrl', DEFAULT_URL),
-                })
-                .then(result => {
-                  if (!result.canceled && result.text) {
-                    store.set('customUrl', result.text);
-                  }
-                });
-            }
-          },
-          enabled: ENV === 'stage',
-        },
-        { type: 'separator' },
-        {
           label: 'Quit',
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
           click: () => {
-            require('electron').app.quit();
+            app.quit();
           },
         },
       ],
@@ -51,7 +30,7 @@ function createMenu() {
             reloadMainWindow();
           },
         },
-        { type: 'separator' },
+        { type: 'separator' as const },
         {
           label: 'Force Reload',
           accelerator: 'CmdOrCtrl+Shift+R',
@@ -59,7 +38,7 @@ function createMenu() {
             reloadMainWindow(true);
           },
         },
-        { type: 'separator' },
+        { type: 'separator' as const },
         {
           label: 'Toggle DevTools',
           accelerator: 'F12',
@@ -85,8 +64,8 @@ function createMenu() {
             dialog.showMessageBox({
               type: 'info',
               title: 'About Allen UI Console',
-              message: 'Allen UI Console Electron App',
-              detail: 'Version 1.0.0\nEnvironment: ' + ENV,
+              message: 'Allen Console',
+              detail: 'Version: ' + app.getVersion() + '\nEnvironment: ' + ENV,
             });
           },
         },
@@ -98,4 +77,4 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-module.exports = { createMenu };
+export { createMenu };

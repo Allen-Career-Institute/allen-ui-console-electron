@@ -1,8 +1,9 @@
 // Stream window preload script
-const { contextBridge, ipcRenderer } = require('electron');
+import { contextBridge, ipcRenderer } from 'electron';
+import { StreamElectronAPI } from './types/preload';
 
 // Prevent any reload attempts from the renderer process
-window.addEventListener('beforeunload', event => {
+window.addEventListener('beforeunload', (event: BeforeUnloadEvent) => {
   event.preventDefault();
   event.returnValue = '';
   console.log('Page unload prevented in stream window');
@@ -33,7 +34,7 @@ try {
   if (originalLocation && originalLocation.href !== undefined) {
     try {
       Object.defineProperty(originalLocation, 'href', {
-        set: function (value) {
+        set: function (value: string) {
           console.log('Location href change blocked in stream window');
           return false;
         },
@@ -44,11 +45,17 @@ try {
       });
       console.log('Successfully overrode location.href setter');
     } catch (hrefError) {
-      console.log('Could not override location.href:', hrefError.message);
+      console.log(
+        'Could not override location.href:',
+        hrefError instanceof Error ? hrefError.message : 'Unknown error'
+      );
     }
   }
 } catch (error) {
-  console.log('Could not override location methods:', error.message);
+  console.log(
+    'Could not override location methods:',
+    error instanceof Error ? error.message : 'Unknown error'
+  );
 }
 
 // Override history methods to prevent navigation
@@ -104,45 +111,74 @@ if (typeof window.eval === 'function') {
 // Block any attempts to use Function constructor
 if (typeof window.Function === 'function') {
   const originalFunction = window.Function;
-  window.Function = function () {
+  window.Function = function (...args: any[]) {
     console.log('Function constructor blocked in stream window');
-    return false;
-  };
+    return originalFunction(...args);
+  } as FunctionConstructor;
 }
 
 // Block any attempts to use setTimeout/setInterval with code strings
 const originalSetTimeout = window.setTimeout;
 const originalSetInterval = window.setInterval;
 
-window.setTimeout = function (fn, delay, ...args) {
+// Store original functions
+const originalSetTimeoutTyped = window.setTimeout;
+const originalSetIntervalTyped = window.setInterval;
+
+// Override setTimeout
+window.setTimeout = function (fn: any, delay?: number, ...args: any[]) {
   if (typeof fn === 'string') {
     console.log('setTimeout with string blocked in stream window');
-    return false;
+    return originalSetTimeoutTyped(() => {}, 0);
   }
-  return originalSetTimeout(fn, delay, ...args);
-};
+  return originalSetTimeoutTyped(fn, delay, ...args);
+} as typeof window.setTimeout;
 
-window.setInterval = function (fn, delay, ...args) {
+// Override setInterval
+window.setInterval = function (fn: any, delay?: number, ...args: any[]) {
   if (typeof fn === 'string') {
     console.log('setInterval with string blocked in stream window');
-    return false;
+    return originalSetIntervalTyped(() => {}, 0);
   }
-  return originalSetInterval(fn, delay, ...args);
-};
+  return originalSetIntervalTyped(fn, delay, ...args);
+} as typeof window.setInterval;
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 try {
   contextBridge.exposeInMainWorld('electronAPI', {
-    // Request stream config from main process
-    requestStreamConfig: () => ipcRenderer.invoke('request-stream-config'),
-    // Event listeners
-    onStreamControl: callback => ipcRenderer.on('stream-control', callback),
-    onCleanupResources: callback =>
-      ipcRenderer.on('cleanup-resources', callback),
+    requestStreamConfig: (): Promise<any> =>
+      ipcRenderer.invoke('request-stream-config'),
+    onStreamControl: (callback: (event: any, ...args: any[]) => void): void => {
+      ipcRenderer.on('stream-control', callback);
+    },
+    onCleanupResources: (
+      callback: (event: any, ...args: any[]) => void
+    ): void => {
+      ipcRenderer.on('cleanup-resources', callback);
+    },
+    sendMediaChunk: (
+      meetingId: string,
+      chunkData: any,
+      chunkIndex: number,
+      isLastChunk: boolean = false
+    ): Promise<any> =>
+      ipcRenderer.invoke('sendMessage', {
+        type: 'MEDIA_CHUNK_DATA',
+        payload: {
+          meetingId,
+          chunkData,
+          chunkIndex,
+          timestamp: Date.now(),
+          isLastChunk,
+        },
+      }),
+
     // Remove listeners
-    removeAllListeners: channel => ipcRenderer.removeAllListeners(channel),
-  });
+    removeAllListeners: (channel: string): void => {
+      ipcRenderer.removeAllListeners(channel);
+    },
+  } as StreamElectronAPI);
 
   console.log('Successfully exposed electronAPI to renderer process');
 } catch (error) {
@@ -150,10 +186,20 @@ try {
 }
 
 // Add error handler for uncaught errors
-process.on('uncaughtException', error => {
+process.on('uncaughtException', (error: Error) => {
   console.error('Uncaught exception in preload script:', error);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection in preload script:', reason, promise);
-});
+process.on(
+  'unhandledRejection',
+  (reason: unknown, promise: Promise<unknown>) => {
+    console.error('Unhandled rejection in preload script:', reason, promise);
+  }
+);
+
+// Extend the global Window interface for stream window
+declare global {
+  interface Window {
+    streamElectronAPI: StreamElectronAPI;
+  }
+}
