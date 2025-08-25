@@ -1,5 +1,5 @@
 {
-  "watch": ["src/main.js", "src/preload.js", "src/recording-process.js", "src/advanced-recording-process.js"],
+  "watch": ["src/**/*.ts", ".env.local"],
   "ext": "js",
   "ignore": ["node_modules/**/node_modules", "dist/**", "out/**"],
   "exec": "yarn start",

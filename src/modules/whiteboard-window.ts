@@ -1,7 +1,9 @@
-import { BrowserWindow, screen } from 'electron';
+import { BrowserWindow, screen, app } from 'electron';
 import path from 'path';
-import { DEFAULT_URL, ENV } from './config';
-import { WhiteboardWindowConfig } from '../types/electron';
+import { WhiteboardWindowConfig } from '@/types/electron';
+import { getSharedSession } from './windowManager';
+import { isDev } from './config';
+import { registerWhiteboardWindow } from './processNaming';
 
 let whiteboardWindow: BrowserWindow | null = null;
 let whiteboardWindowConfig: WhiteboardWindowConfig | null = null;
@@ -48,14 +50,12 @@ function cleanupwhiteboardWindowResources(): void {
       try {
         whiteboardWindow.webContents.send('cleanup-resources');
       } catch (error) {
-        console.log(
+        console.error(
           'Could not send cleanup signal to whiteboard window:',
           (error as Error).message
         );
       }
     }
-
-    console.log('Whiteboard window resources cleaned up successfully');
   } catch (error) {
     console.error('Error during whiteboard window cleanup:', error);
   }
@@ -109,8 +109,6 @@ function safeClosewhiteboardWindow(reason: string = 'unknown'): boolean {
             whiteboardWindowSettingUp = false;
             whiteboardWindowConfig = null;
           }, 100);
-
-          console.log(`Whiteboard window closed safely. Reason: ${reason}`);
           return true;
         } catch (error) {
           console.error('Error during whiteboard window close:', error);
@@ -128,9 +126,6 @@ function safeClosewhiteboardWindow(reason: string = 'unknown'): boolean {
 function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
   try {
     if (whiteboardWindow && !whiteboardWindow.isDestroyed()) {
-      console.log(
-        'Whiteboard window already exists, returning existing window'
-      );
       return whiteboardWindow;
     }
 
@@ -172,12 +167,16 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
       height: windowHeight,
       x,
       y,
-      title: 'Allen Whiteboard',
+      title: 'Whiteboard',
       show: false,
       webPreferences: {
-        nodeIntegration: false,
+        nodeIntegration: true,
         contextIsolation: true,
-        preload: path.join(__dirname, '../whiteboard-preload.js'),
+        preload: path.join(
+          app.isPackaged ? app.getAppPath() : process.cwd(),
+          'dist',
+          'whiteboard-preload.js'
+        ),
         webSecurity: false, // Disable for screen sharing to work
         allowRunningInsecureContent: true,
         // Enable experimental features for better screen sharing
@@ -185,12 +184,13 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
         // Enable WebRTC features
         enableBlinkFeatures:
           'WebCodecs,WebRTC,GetDisplayMedia,ScreenCaptureKit,DesktopCaptureKit,WebRTCPipeWireCapturer',
+        // Use shared session for localStorage/cookies persistence
+        session: getSharedSession(),
       },
-      icon: path.join(__dirname, '../../assets/icon.png'),
       resizable: true,
       minimizable: true,
       maximizable: true,
-      closable: true,
+      closable: false,
       alwaysOnTop: false,
       skipTaskbar: false,
       autoHideMenuBar: true,
@@ -201,17 +201,11 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
       titleBarStyle: 'default',
     });
 
-    console.log(
-      'whiteboardWindowConfig',
-      whiteboardWindowConfig,
-      whiteboardWindow
-    );
-
     // Load the whiteboard window content
     // whiteboardWindow.loadFile(path.join(__dirname, '../renderer/recording-window.html'));
-    whiteboardWindow.loadURL(whiteboardWindowConfig.url || DEFAULT_URL);
+    whiteboardWindow.loadURL(whiteboardWindowConfig.url);
 
-    if (ENV === 'development') {
+    if (isDev()) {
       whiteboardWindow.webContents.openDevTools();
     }
     // Handle window events
@@ -219,9 +213,15 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
       if (whiteboardWindow && !whiteboardWindow.isDestroyed()) {
         whiteboardWindow.show();
         whiteboardWindow.focus();
-        whiteboardWindow.maximize;
+        whiteboardWindow.maximize();
         whiteboardWindowSettingUp = false;
-        console.log('Whiteboard window ready and shown');
+      }
+    });
+
+    whiteboardWindow.webContents.on('did-finish-load', () => {
+      if (whiteboardWindow) {
+        // Register with new process naming system
+        registerWhiteboardWindow(whiteboardWindow);
       }
     });
 
@@ -229,7 +229,6 @@ function createWhiteboardWindow(config: WhiteboardWindowConfig): BrowserWindow {
       whiteboardWindow = null;
       whiteboardWindowSettingUp = false;
       whiteboardWindowConfig = null;
-      console.log('Whiteboard window closed');
     });
 
     whiteboardWindow.on('unresponsive', () => {

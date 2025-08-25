@@ -1,18 +1,65 @@
-import { app, BrowserWindow, ipcMain, shell, WebContents } from 'electron';
-import path from 'path';
-import Store from 'electron-store';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  session,
+  dialog,
+  crashReporter,
+} from 'electron';
+import * as Sentry from '@sentry/electron/main';
+import { loadEnv, getLoadEnvError } from './modules/loadEnv';
+import { getSentryDsn, getSentryEndpoint } from './modules/config';
 
-// Load environment variables
-require('dotenv').config({ path: '.env.local' });
+loadEnv();
+
+if (getSentryEndpoint()) {
+  crashReporter.start({
+    companyName: 'Allen Career Institute',
+    productName: 'Astra',
+    submitURL: getSentryEndpoint(),
+    uploadToServer: true,
+  });
+}
+
+if (getSentryDsn()) {
+  Sentry.init({
+    dsn: getSentryDsn(),
+    environment: process.env.ENV,
+    sendDefaultPii: true,
+    tracesSampleRate: 0.1,
+    getSessions: () => [
+      session.defaultSession,
+      session.fromPartition('persist:shared'),
+    ],
+    transportOptions: {
+      maxAgeDays: 30,
+      maxQueueSize: 30,
+      flushAtStartup: true,
+    },
+    // Add process identification to Sentry
+    beforeSend: event => {
+      event.tags = {
+        ...event.tags,
+        process_type: 'main',
+        process_name: 'Main Process',
+        app_component: 'Astra Console',
+      };
+      return event;
+    },
+  });
+}
 
 // Import modules
-import { initializeSentry } from './modules/sentry';
 import { createMenu } from './modules/menu';
-import { setupIpcHandlers } from './modules/ipcHandlers';
+import {
+  setupIpcHandlers,
+  cleanupFFmpegProcesses,
+} from './modules/ipcHandlers';
 import { setupAutoUpdater } from './modules/autoUpdater';
-import { cleanup, setupCleanupHandlers } from './modules/cleanup';
+import { cleanup } from './modules/cleanup';
 import { createMainWindow } from './modules/windowManager';
 import { getStreamWindow } from './modules/streamWindow';
+import { getWhiteboardWindow } from './modules/whiteboard-window';
 
 // Enable hardware acceleration and WebRTC optimizations for better video quality
 app.commandLine.appendSwitch(
@@ -58,21 +105,39 @@ app.commandLine.appendSwitch('--webrtc-cpu-overuse-detection', 'false');
 
 setupIpcHandlers(ipcMain);
 
-// Security: Prevent new window creation
-app.on('web-contents-created', (event, contents: WebContents) => {
-  // contents.on('new-window-for-tab', (event: any, navigationUrl: string) => {
-  //   event.preventDefault();
-  //   shell.openExternal(navigationUrl);
-  // });
-});
-
 // App event handlers
 app.on('ready', () => {
   try {
-    initializeSentry();
     createMainWindow();
     createMenu();
-    setupAutoUpdater();
+
+    process.title = 'Astra-Main';
+    // Set up automatic process naming for Electron processes
+    // setupAutomaticProcessNaming();
+
+    // Show error dialog if environment variables failed to load
+    if (getLoadEnvError()) {
+      dialog
+        .showMessageBox({
+          type: 'error',
+          title: 'Environment Variables Error',
+          message: 'Environment variables not loaded',
+          detail: getLoadEnvError()?.message || 'Unknown error',
+          buttons: ['OK'],
+        })
+        .catch(err => {
+          console.error('Failed to show environment error dialog:', err);
+        });
+    }
+    // logEnv();
+
+    // Setup auto-updater with error handling
+    try {
+      setupAutoUpdater();
+    } catch (autoUpdaterError) {
+      console.error('Failed to setup auto-updater:', autoUpdaterError);
+      // Continue with app initialization even if auto-updater fails
+    }
 
     // Start cleanup worker from main window
     // startCleanupWorker();
@@ -86,6 +151,17 @@ app.on('ready', () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  } else {
+    console.log('window-all-closed');
+    cleanupFFmpegProcesses();
+    const streamWindow = getStreamWindow();
+    if (streamWindow && !streamWindow.isDestroyed()) {
+      streamWindow.close();
+    }
+    const whiteboardWindow = getWhiteboardWindow();
+    if (whiteboardWindow && !whiteboardWindow.isDestroyed()) {
+      whiteboardWindow.close();
+    }
   }
 });
 
@@ -96,9 +172,6 @@ app.on('activate', () => {
 });
 
 app.on('before-quit', () => {
-  const streamWindow = getStreamWindow();
-  if (streamWindow && !streamWindow.isDestroyed()) {
-    streamWindow.close();
-  }
+  cleanupFFmpegProcesses();
   cleanup();
 });

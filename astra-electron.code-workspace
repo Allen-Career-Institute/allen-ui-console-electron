@@ -1,0 +1,32 @@
+{
+  "folders": [
+    {
+      "name": "astra-electron",
+      "path": "/Users/dineshkumard/ALLEN_Digital/allen-ui-console-electron"
+    },
+    {
+      "name": "allen-ui-live",
+      "path": "/Users/dineshkumard/ALLEN_Digital/allen-ui-live"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.next": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.next": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-vscode.vscode-typescript-next",
+      "bradlc.vscode-tailwindcss",
+      "esbenp.prettier-vscode",
+      "ms-vscode.vscode-eslint"
+    ]
+  }
+}
