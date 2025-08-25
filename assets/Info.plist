@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>Astra</string>
+    <key>CFBundleExecutable</key>
+    <string>Astra</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.allendigital.astra</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Astra</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.0.1</string>
+    <key>CFBundleVersion</key>
+    <string>0.0.1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.15.0</string>
+    <key>NSCameraUsageDescription</key>
+    <string>This app requires camera access for streaming</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app requires microphone access for streaming</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>This app needs access to Apple events</string>
+    <key>NSSystemAdministrationUsageDescription</key>
+    <string>This app needs to capture the screen</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Access to desktop may be needed for screen recording</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Access to documents may be needed</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Access to downloads may be needed</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    <key>LSUIElement</key>
+    <false/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+</dict>
+</plist>

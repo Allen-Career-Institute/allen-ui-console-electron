@@ -1,0 +1,160 @@
+{
+  "appId": "com.allendigital.astra",
+  "productName": "Astra",
+  "directories": {
+    "output": "dist-electron-builder",
+    "buildResources": "assets"
+  },
+  "files": [
+    "dist/**/*",
+    "assets/**/*",
+    "assets/installer/**/*",
+    "node_modules/electron-store/**/*",
+    "node_modules/electron-updater/**/*",
+    "node_modules/uuid/**/*",
+    "node_modules/date-fns/**/*",
+    "!**/*.d.ts",
+    "!**/*.map",
+    "!**/*.ts",
+    "!**/*.md",
+    "!**/*.log",
+    "!**/*.test.*",
+    "!**/*.spec.*",
+    "!**/test/**",
+    "!**/tests/**",
+    "!**/__tests__/**",
+    "!**/.git/**",
+    "!**/.github/**",
+    "!**/.vscode/**",
+    "!**/.idea/**",
+    "!**/coverage/**",
+    "!**/docs/**",
+    "!**/examples/**",
+    "!**/scripts/**",
+    "!**/build/**",
+    "!**/out/**",
+    "!**/*.node_modules/**",
+    "!**/src/**"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "appx",
+        "arch": ["x64"]
+      }
+    ],
+    "requestedExecutionLevel": "asInvoker",
+    "icon": "assets/icons/win/icon.ico",
+    "artifactName": "${productName}-${version}-appx.${ext}",
+    "publisherName": "Allen Digital",
+    "verifyUpdateCodeSignature": false,
+    "certificateFile": null,
+    "certificatePassword": null,
+    "rfc3161TimeStampServer": null,
+    "timeStampServer": null
+  },
+  "appx": {
+    "identityName": "AllenDigital.Astra",
+    "publisher": "CN=AllenDigital",
+    "displayName": "Astra",
+    "publisherDisplayName": "ALLEN Digital",
+    "backgroundColor": "#ffffff",
+    "languages": ["en-US"],
+    "applicationId": "AllenDigital.Astra",
+    "showNameOnTiles": true,
+    "makeappxArgs": ["--verbose"]
+  },
+  "mac": {
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      },
+      {
+        "target": "zip",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "icon": "assets/icons/mac/icon.icns",
+    "artifactName": "${productName}-${version}-mac.${ext}",
+    "category": "public.app-category.productivity",
+    "entitlements": "assets/entitlements.mac.plist",
+    "entitlementsInherit": "assets/entitlements.mac.plist",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "notarize": false,
+    "extendInfo": {
+      "CFBundleDisplayName": "Astra",
+      "CFBundleExecutable": "Astra",
+      "CFBundleIdentifier": "com.allendigital.astra",
+      "CFBundleInfoDictionaryVersion": "6.0",
+      "CFBundleName": "Astra",
+      "CFBundlePackageType": "APPL",
+      "CFBundleShortVersionString": "0.0.1",
+      "CFBundleVersion": "0.0.1",
+      "LSMinimumSystemVersion": "10.15.0",
+      "NSCameraUsageDescription": "This app requires camera access for streaming",
+      "NSMicrophoneUsageDescription": "This app requires microphone access for streaming",
+      "NSAppleEventsUsageDescription": "This app needs access to Apple events",
+      "NSSystemAdministrationUsageDescription": "This app needs to capture the screen",
+      "NSDesktopFolderUsageDescription": "Access to desktop may be needed for screen recording",
+      "NSDocumentsFolderUsageDescription": "Access to documents may be needed",
+      "NSDownloadsFolderUsageDescription": "Access to downloads may be needed",
+      "NSHighResolutionCapable": true,
+      "NSRequiresAquaSystemAppearance": false,
+      "LSUIElement": false,
+      "LSApplicationCategoryType": "public.app-category.productivity"
+    }
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      {
+        "target": "deb",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icons/png/512x512.png",
+    "artifactName": "${productName}-${version}-linux.${ext}",
+    "category": "Utility"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "dinesh-kumar-allen",
+    "repo": "allen-ui-console-electron",
+    "private": false,
+    "releaseType": "release"
+  },
+  "forceCodeSigning": false,
+  "asar": false,
+  "compression": "maximum",
+  "removePackageScripts": true,
+  "removePackageKeywords": true,
+  "extraResources": [
+    {
+      "from": "node_modules/electron-updater",
+      "to": "electron-updater"
+    },
+    {
+      "from": "node_modules/uuid",
+      "to": "uuid"
+    },
+    {
+      "from": "node_modules/date-fns",
+      "to": "date-fns"
+    },
+    {
+      "from": "node_modules/electron-store",
+      "to": "electron-store"
+    },
+    {
+      "from": ".env.local",
+      "to": ".env.local"
+    }
+  ],
+  "nodeGypRebuild": false,
+  "buildDependenciesFromSource": false
+}

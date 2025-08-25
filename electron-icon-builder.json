@@ -1,0 +1,19 @@
+{
+  "input": "assets/icons/png/1024x1024.png",
+  "output": "assets/icons",
+  "flatten": true,
+  "platforms": ["win", "mac", "linux"],
+  "sizes": [16, 24, 32, 48, 64, 128, 256, 512, 1024],
+  "win": {
+    "icon": "win/icon.ico",
+    "sizes": [16, 24, 32, 48, 64, 128, 256]
+  },
+  "mac": {
+    "icon": "mac/icon.icns",
+    "sizes": [16, 32, 64, 128, 256, 512, 1024]
+  },
+  "linux": {
+    "icon": "png",
+    "sizes": [16, 24, 32, 48, 64, 128, 256, 512, 1024]
+  }
+}

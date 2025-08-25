@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap rescap">
+  <Identity Name="AllenDigital.Astra" Publisher="CN=AllenDigital" Version="0.0.1.0" />
+  <Properties>
+    <DisplayName>Astra</DisplayName>
+    <PublisherDisplayName>ALLEN Digital</PublisherDisplayName>
+    <Logo>assets\icons\win\icon.ico</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.0.0" MaxVersionTested="10.0.0.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="en-US" />
+  </Resources>
+  <Applications>
+    <Application Id="Astra" Executable="Astra.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="Astra" Square150x150Logo="assets\icons\win\icon.ico" Square44x44Logo="assets\icons\win\icon.ico" Description="Astra Console Electron App with WebView and Video Streaming" BackgroundColor="#ffffff">
+        <uap:DefaultTile Wide310x150Logo="assets\icons\win\icon.ico" Square71x71Logo="assets\icons\win\icon.ico" />
+        <uap:SplashScreen Image="assets\icons\win\icon.ico" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="astra" />
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

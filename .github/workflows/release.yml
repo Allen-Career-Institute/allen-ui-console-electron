@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+  YARN_VERSION: '4.9.2'
+  NODE_ENV: production
+  ENV: production
+  PROD_URL: 'https://astra.allen.in/'
+  ASTRA_ELECTRON_SENTRY_DSN: ${{ secrets.ASTRA_ELECTRON_SENTRY_DSN }}
+  ASTRA_ELECTRON_SENTRY_ENDPOINT: ${{ secrets.ASTRA_ELECTRON_SENTRY_ENDPOINT }}
+          
+
+# Cancel in-progress jobs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Check permissions first
+  check-permissions:
+    runs-on: ubuntu-latest
+    outputs:
+      has-permissions: ${{ steps.perms.outputs.level }}
+    steps:
+      - name: Check repository permissions
+        id: perms
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: permissions } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.actor
+            });
+            core.setOutput('level', permissions.permission);
+            console.log(`User ${context.actor} has ${permissions.permission} permission`);
+
+  build-and-release:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    # Only run if not a fork and user has write access
+    if: |
+      (startsWith(github.ref, 'refs/tags/') || 
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) &&
+      !github.event.repository.fork &&
+      contains(fromJson('["write", "admin", "maintain"]'), needs.check-permissions.outputs.has-permissions)
+    needs: check-permissions
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from package.json
+        id: get_version
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "Package version: $version"
+
+      - name: Create .env.local file
+        run: |
+          echo "ENV=${{ env.ENV }}" > .env.local
+          echo "NODE_ENV=${{ env.NODE_ENV }}" >> .env.local
+          echo "STAGE_URL=${{ env.STAGE_URL }}" >> .env.local
+          echo "PROD_URL=${{ env.PROD_URL }}" >> .env.local
+          echo "CUSTOM_URL=${{ env.CUSTOM_URL }}" >> .env.local
+          echo "DEV_URL=${{ env.DEV_URL }}" >> .env.local
+          echo "APP_VERSION=${{ steps.get_version.outputs.version }}" >> .env.local
+          echo "ASTRA_ELECTRON_SENTRY_DSN=${{ env.ASTRA_ELECTRON_SENTRY_DSN }}" >> .env.local
+          echo "ASTRA_ELECTRON_SENTRY_ENDPOINT=${{ env.ASTRA_ELECTRON_SENTRY_ENDPOINT }}" >> .env.local
+          echo "Created .env.local file with environment variables:"
+          cat .env.local
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+        timeout-minutes: 10
+
+      - name: Test environment variables
+        run: yarn test:env
+        timeout-minutes: 2
+        env:
+          NODE_ENV: ${{ env.NODE_ENV }}
+          STAGE_URL: ${{ env.STAGE_URL }}
+          PROD_URL: ${{ env.PROD_URL }}
+          CUSTOM_URL: ${{ env.CUSTOM_URL }}
+          DEV_URL: ${{ env.DEV_URL }}
+          ASTRA_ELECTRON_SENTRY_DSN: ${{ env.ASTRA_ELECTRON_SENTRY_DSN }}
+          ASTRA_ELECTRON_SENTRY_ENDPOINT: ${{ env.ASTRA_ELECTRON_SENTRY_ENDPOINT }}
+
+      - name: Build Windows
+        run: yarn build:win-nsis
+        timeout-minutes: 25
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.get_version.outputs.version) }}
+          name: Release ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.get_version.outputs.version) }}
+          body: |
+            ## Allen UI Console Electron ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.get_version.outputs.version) }}
+
+            ### Downloads
+            - **Windows (64-bit):** AppX Package (.appx) - Ready for Windows Store submission
+
+            ### Build Info
+            - **Build Tool:** Electron Builder
+            - **Node.js:** 18
+            - **Platforms:** Windows 64-bit (APPX)
+            - **Commit:** ${{ github.sha }}
+
+            ### Windows Store
+            The AppX package is ready for submission to the Windows Store. Use the AppX file for:
+            - Windows Store publishing
+            - Enterprise distribution
+            - Testing on Windows 10/11 devices
+
+            ### Changes
+            See the [commit history](https://github.com/${{ github.repository }}/compare/${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.get_version.outputs.version) }}...main) for details.
+          files: |
+            dist-electron-builder/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,7 +1,44 @@
-# Allen UI Console Electron App
+# Astra Electron Console
 
-A powerful Electron application for web content display, video streaming, and advanced recording
-capabilities with Agora integration.
+A modern Electron application for Allen Digital's Astra console with webview integration and video streaming capabilities.
+
+## Build Migration: NSIS → APPX
+
+This project has been migrated from NSIS installer builds to APPX package builds for Windows. This change provides several benefits:
+
+### Benefits of APPX over NSIS:
+
+- **Windows Store Ready**: APPX packages can be directly submitted to the Microsoft Store
+- **Enterprise Distribution**: Better support for enterprise deployment and management
+- **Modern Windows Integration**: Enhanced integration with Windows 10/11 features
+- **Automatic Updates**: Better support for automatic updates through Windows Store
+- **Security**: Improved security model with Windows Store signing
+
+### Build Artifacts:
+
+- **Before**: Windows installer (.exe) using NSIS
+- **After**: Windows APPX package (.appx) ready for store submission
+
+### Build Commands:
+
+```bash
+# Build all platforms
+yarn build:all
+
+# Build only Windows Appx
+yarn build:win-appx
+
+# Build only Windows NSIS
+yarn build:win-nsis
+
+```
+
+### Migration Notes:
+
+- **Removed**: NSIS installer configuration and scripts
+- **Kept**: PowerShell and batch scripts in `assets/installer/` for process management
+- **New**: Enhanced APPX configuration with proper tile assets and capabilities
+- **Output**: APPX packages are generated in `dist-electron-builder/` directory
 
 ## 🚀 **Features**
 
@@ -75,9 +112,21 @@ capabilities with Agora integration.
    yarn install
    ```
 
-3. **Start development**:
+3. **Set up development environment**:
+
+   ```bash
+   ./scripts/setup-dev.sh
+   ```
+
+4. **Start development**:
+
    ```bash
    yarn dev
+   ```
+
+5. **Build for development** (no code signing):
+   ```bash
+   yarn dev:build
    ```
 
 ## 🔧 **Configuration**
@@ -92,20 +141,106 @@ NODE_ENV=development
 APP_VERSION=1.0.0
 
 # URLs
-STAGE_URL=https://stage.allen.com
-PROD_URL=https://app.allen.com
-CUSTOM_URL=https://custom.allen.com
+STAGE_URL=https://console.allen-stage.in
+PROD_URL=https://astra.allen.in
+CUSTOM_URL=http://localhost:3000
 
 # Sentry Configuration
 SENTRY_DSN=your-sentry-dsn
-SENTRY_DSN_DEV=your-sentry-dev-dsn
 
 # GitHub Secrets (for CI/CD)
 GITHUB_TOKEN=your-github-token
-SENTRY_AUTH_TOKEN=your-sentry-auth-token
-SENTRY_ORG=your-sentry-org
-SENTRY_PROJECT=your-sentry-project
+
 ```
+
+## 🚀 **GitHub Actions & CI/CD**
+
+This project includes automated build and release workflows using GitHub Actions.
+
+### **Workflows**
+
+1. **PR Build** (`.github/workflows/pr-build.yml`)
+   - Triggers on pull requests to `main` and `develop`
+   - Builds for all platforms (macOS, Windows, Linux)
+   - Creates artifacts for testing (no GitHub release)
+   - Artifacts retained for 30 days
+
+2. **Release** (`.github/workflows/release.yml`)
+   - Triggers on pushes to `main` branch
+   - Builds for all platforms with code signing
+   - Creates GitHub release with downloadable assets
+   - Can be manually triggered with custom version
+
+### **Quick Setup**
+
+1. **Set up development environment**:
+
+   ```bash
+   ./scripts/setup-dev.sh
+   ```
+
+2. **Generate local certificates** (optional):
+
+   ```bash
+   ./scripts/generate-dev-cert.sh
+   ```
+
+3. **Set up production certificates**:
+
+   ```bash
+   ./scripts/setup-secrets.sh
+   ```
+
+4. **Add secrets to GitHub**:
+   - Go to your repository → Settings → Secrets and variables → Actions
+   - Add the secrets provided by the setup script
+
+5. **Push to trigger builds**:
+   - PR builds: Create a pull request (uses stage environment)
+   - Releases: Push to main branch (uses production environment)
+
+### **Supported Platforms**
+
+- **Windows**: 64-bit (x64) and 32-bit (ia32)
+
+### **Code Signing**
+
+The release workflow supports code signing for secure distribution:
+
+- **Windows**: Code signing certificate (optional)
+
+### **Environment Configuration**
+
+- **PR Builds**: Use stage environment (`NODE_ENV=stage`)
+- **Release Builds**: Use production environment (`NODE_ENV=production`)
+- **Local Development**: Use development environment (`NODE_ENV=development`)
+
+### **Certificate Management**
+
+- **Production**: Base64-encoded Windows certificates stored in GitHub Secrets
+- **Development**: Self-signed Windows certificates generated locally
+- **Stage**: No code signing (for testing)
+
+### **Version Management**
+
+The project uses automatic version incrementing with Semantic Versioning:
+
+- **Automatic**: Push to main triggers patch version increment
+- **Manual**: Workflow dispatch allows custom version or increment type
+- **Local Tools**: Version manager script for development
+
+```bash
+# Show current version
+yarn version:current
+
+# Bump version
+yarn version:bump patch    # 1.0.0 → 1.0.1
+yarn version:bump minor    # 1.0.0 → 1.1.0
+yarn version:bump major    # 1.0.0 → 2.0.0
+```
+
+For detailed setup instructions, see [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md). For version
+management details, see [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md).
 
 ### **App Configuration**
 
@@ -190,8 +325,13 @@ yarn dev:full        # Full-stack development (renderer + main process)
 # 🏗️ Building Commands
 yarn build:ts        # Compile TypeScript to JavaScript
 yarn build           # Build TypeScript and create distributables
-yarn make            # Create distributables using Electron Forge
-yarn package         # Package the application for distribution
+yarn dist:all        # Build for all platforms (macOS, Windows, Linux)
+yarn dist:win-only   # Build for Windows only
+yarn dist:mac-only   # Build for macOS only
+yarn dist:linux-only # Build for Linux only
+yarn dist:win        # Build Windows package (requires previous build steps)
+yarn dist:mac        # Build macOS package (requires previous build steps)
+yarn dist:linux      # Build Linux package (requires previous build steps)
 
 # 🧹 Cleanup Commands
 yarn clean           # Remove all build artifacts and dependencies
